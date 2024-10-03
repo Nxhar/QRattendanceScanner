@@ -1,17 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
-import { auth } from '../firebaseconfig'; // Adjust the import path as needed
+import { auth, db } from '../firebaseconfig'; // Adjust the import path as needed
 import { signOut } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Link, useNavigate } from 'react-router-dom';
-
 
 const StudentIdCard = () => {
   const location = useLocation();
   const studentData = location.state;
 
   const navigate = useNavigate();
-
+  const [attendanceLogs, setAttendanceLogs] = useState([]);
 
   const handleLogout = async () => {
     try {
@@ -22,11 +22,34 @@ const StudentIdCard = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchAttendanceLogs = async () => {
+      if (studentData) {
+        try {
+          const q = query(
+            collection(db, 'attendance-logs'),
+            where('rollNumber', '==', studentData.rollNumber)
+          );
+          const querySnapshot = await getDocs(q);
+          const logs = [];
+          querySnapshot.forEach((doc) => {
+            logs.push(doc.data());
+          });
+          setAttendanceLogs(logs);
+        } catch (error) {
+          console.error("Error fetching attendance logs: ", error);
+        }
+      }
+    };
+
+    fetchAttendanceLogs();
+  }, [studentData]);
+
   if (!studentData) {
     return <div className="container mt-5 text-danger">No student data available.</div>;
   }
 
-  const { rollNumber, studentEmail, studentName, photoURL, qrCodeData } = studentData; // Adjust according to your Firestore structure
+  const { rollNumber, studentEmail, studentName, photoURL, qrCodeData } = studentData;
 
   return (
     <div className="container mt-5" style={{ backgroundColor: 'white', color: 'black', padding: '20px', borderRadius: '8px' }}>
@@ -34,9 +57,14 @@ const StudentIdCard = () => {
       <h2 className="mb-4">Student ID Card</h2>
       <div className="card text-center" style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
         <div className="text-center">
-        {photoURL && (
-          <img src={photoURL} alt="Student" className="card-img-top" style={{ width: '150px', height: '150px', borderRadius: '50%', marginBottom: '20px' }} />
-        )}
+          {photoURL && (
+            <img
+              src={photoURL}
+              alt="Student"
+              className="card-img-top"
+              style={{ width: '150px', height: '150px', borderRadius: '50%', marginBottom: '20px' }}
+            />
+          )}
         </div>
         <div className="card-body">
           <h5 className="card-title">{studentName}</h5>
@@ -52,8 +80,25 @@ const StudentIdCard = () => {
       </div>
 
       <button onClick={handleLogout} className="btn btn-danger btn-lg mt-5">
-            Logout
-          </button>
+        Logout
+      </button>
+
+      <div className="attendance-logs mt-4">
+        <h3>Attendance Logs</h3>
+        {attendanceLogs.length > 0 ? (
+          <ul className="list-group">
+            {attendanceLogs.map((log, index) => (
+              <li key={index} className="list-group-item">
+                Timestamp: {log.timestamp.toDate().toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No attendance logs available for this student.</p>
+        )}
+      </div>
+
+
     </div>
   );
 };

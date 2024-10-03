@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { auth, storage, db } from '../firebaseconfig'; // Adjust the import path as needed
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc } from 'firebase/firestore';
-import QRCode from 'qrcode'; // Importing the qrcode package
+import { createUserWithEmailAndPassword } from 'firebase/auth'; // Importing createUserWithEmailAndPassword
+import QRCode from 'qrcode';
 import { Link } from 'react-router-dom';
 
 const StudentRegistration = () => {
@@ -16,35 +17,51 @@ const StudentRegistration = () => {
         setStudentPhoto(e.target.files[0]);
     };
 
+
+
+    
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // Upload student photo to Firebase Storage
-        let photoURL = '';
-        if (studentPhoto) {
-            const photoRef = ref(storage, `student_photos/${studentPhoto.name}`);
-            await uploadBytes(photoRef, studentPhoto);
-            photoURL = await getDownloadURL(photoRef);
+    
+        try {
+            // Register the student in Firebase Authentication
+            const userCredential = await createUserWithEmailAndPassword(auth, studentEmail, 'au123456');
+    
+            // Upload student photo to Firebase Storage
+            let photoURL = '';
+            if (studentPhoto) {
+                const photoRef = ref(storage, `student_photos/${studentPhoto.name}`);
+                await uploadBytes(photoRef, studentPhoto);
+                photoURL = await getDownloadURL(photoRef);
+            }
+    
+            // Save student data to Firestore
+            await addDoc(collection(db, 'student-data'), {
+                rollNumber,
+                studentName,
+                studentEmail,
+                uid: userCredential.user.uid, // Store user's UID for reference
+                photoURL,
+                qrCodeData,
+            });
+    
+            // Reset the form
+            setRollNumber('');
+            setStudentName('');
+            setStudentPhoto(null);
+            setStudentEmail('');
+            setQrCodeData('');
+            alert('Student registered successfully!');
+        } catch (error) {
+            console.error('Error registering student:', error);
+            alert('Failed to register student. Please try again.');
         }
-
-        // Save student data to Firestore
-        await addDoc(collection(db, 'student-data'), {
-            rollNumber,
-            studentName,
-            studentEmail,
-            password: 'au123456', // Default password
-            photoURL,
-            qrCodeData,
-        });
-
-        // Reset the form
-        setRollNumber('');
-        setStudentName('');
-        setStudentPhoto(null);
-        setStudentEmail('');
-        setQrCodeData('');
-        alert('Student registered successfully!');
     };
+
+    
+
+
 
     // Effect to generate QR Code when rollNumber changes
     useEffect(() => {
@@ -61,31 +78,31 @@ const StudentRegistration = () => {
 
     return (
         <>
-            <nav class="navbar navbar-expand-lg bg-body-tertiary ">
-                <div class="container-fluid">
-                    <a class="navbar-brand" href="#">Staff Dashboard</a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-icon"></span>
+            <nav className="navbar navbar-expand-lg bg-body-tertiary">
+                <div className="container-fluid">
+                    <a className="navbar-brand" href="#">Staff Dashboard</a>
+                    <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <span className="navbar-toggler-icon"></span>
                     </button>
-                    <div class="collapse navbar-collapse" id="navbarNav">
-                        <ul class="navbar-nav">
-                            <li class="nav-item">
-                                <Link class="nav-link ml-3" aria-current="page" to="/staff-dashboard">Back to Dashboard</Link>
+                    <div className="collapse navbar-collapse" id="navbarNav">
+                        <ul className="navbar-nav">
+                            <li className="nav-item">
+                                <Link className="nav-link ml-3" aria-current="page" to="/staff-dashboard">Back to Dashboard</Link>
                             </li>
-                            <li class="nav-item">
-                                <Link to="/attendance-scanning" class="nav-link" >
+                            <li className="nav-item">
+                                <Link to="/attendance-scanning" className="nav-link">
                                     Attendance Scanning
                                 </Link>
                             </li>
-                            <li class="nav-item">
-                                <Link to="/attendance-logs" class="nav-link" >
+                            <li className="nav-item">
+                                <Link to="/attendance-logs" className="nav-link">
                                     Check Attendance Logs
                                 </Link>
                             </li>
                         </ul>
                     </div>
                 </div>
-            </nav >
+            </nav>
             <div className="container mt-3" style={{ color: "white" }}>
                 <h2>Student Registration</h2>
                 <form onSubmit={handleSubmit}>
